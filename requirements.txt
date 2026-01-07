@@ -1,0 +1,3 @@
+# Innovera AI Log Content Extractor
+# No external dependencies required - uses Python standard library only
+# Python 3.9+ required for type hints
