@@ -272,11 +272,15 @@ def build_output(result: ExtractionResult) -> dict:
     original_total = result.original_request_size + result.original_response_size
     reduction_pct = ((original_total - extracted_size) / original_total * 100) if original_total > 0 else 0
     
+    # Estimate token count (rough approximation: ~4 bytes per token for English text)
+    estimated_tokens = int(extracted_size / 4)
+    
     output["metadata"] = {
         "original_request_size_bytes": result.original_request_size,
         "original_response_size_bytes": result.original_response_size,
         "extracted_size_bytes": extracted_size,
-        "reduction_percentage": round(reduction_pct, 1)
+        "reduction_percentage": round(reduction_pct, 1),
+        "estimated_tokens": estimated_tokens
     }
     
     if result.warnings:
@@ -369,6 +373,8 @@ Examples:
                         help='Use summarizedVaultDocumentsData instead of full vaultDocumentsData')
     parser.add_argument('--skip-templates', action='store_true',
                         help='Exclude template_content from output (further size reduction)')
+    parser.add_argument('--dry-run', action='store_true',
+                        help='Show what would be extracted without writing files')
     
     args = parser.parse_args()
     
@@ -436,18 +442,26 @@ Examples:
             verbose=args.verbose
         )
         
-        if result.success or result.request_data or result.response_content:
+        # Check if we have any extractable content (request data or response content)
+        has_extractable_content = bool(result.request_data) or bool(result.response_content)
+        
+        if result.success or has_extractable_content:
             output = build_output(result)
             
-            # Write output file
-            output_filename = f"{result.source_id}-extracted.json"
-            output_path = args.output / output_filename
-            
-            with open(output_path, 'w', encoding='utf-8') as f:
-                json.dump(output, f, indent=2, ensure_ascii=False)
-            
-            if args.verbose:
-                print(f"  → Wrote {output_path}")
+            if args.dry_run:
+                if args.verbose:
+                    print(f"  [DRY RUN] Would write {result.source_id}-extracted.json")
+                    print(f"  [DRY RUN] Estimated tokens: {output['metadata']['estimated_tokens']:,}")
+            else:
+                # Write output file
+                output_filename = f"{result.source_id}-extracted.json"
+                output_path = args.output / output_filename
+                
+                with open(output_path, 'w', encoding='utf-8') as f:
+                    json.dump(output, f, indent=2, ensure_ascii=False)
+                
+                if args.verbose:
+                    print(f"  → Wrote {output_path}")
             
             results.append((result, output))
         else:
@@ -455,6 +469,11 @@ Examples:
     
     # Print summary
     if results:
+        if args.dry_run:
+            print("\n" + "═" * 65)
+            print("DRY RUN - No files written")
+            print("═" * 65)
+        
         print_summary_table(results)
         
         # Show field summary for first file
@@ -466,6 +485,8 @@ Examples:
             if output.get('response', {}).get('content'):
                 content_len = len(output['response']['content'])
                 print(f"  Response: content ({format_size(content_len)})")
+            if output.get('metadata', {}).get('estimated_tokens'):
+                print(f"  Estimated tokens: {output['metadata']['estimated_tokens']:,}")
     else:
         print("\nNo files were successfully processed.", file=sys.stderr)
         sys.exit(1)

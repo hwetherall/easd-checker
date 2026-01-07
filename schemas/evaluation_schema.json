@@ -1,0 +1,501 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EASD Evaluation Output",
+  "description": "Schema for EASD evaluation results from judge models with consensus states and evidence validation",
+  "type": "object",
+  "required": ["source_id", "evaluated_at", "consensus_state"],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "description": "Identifier from the extracted log (e.g., ai-log-259643)"
+    },
+    "evaluated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of evaluation"
+    },
+    "consensus_state": {
+      "type": "string",
+      "enum": ["green", "amber", "red"],
+      "description": "Explicit consensus state: green (3/3 valid), amber (2/3 valid), red (<2 valid)"
+    },
+    "consensus_details": {
+      "$ref": "#/$defs/ConsensusDetails"
+    },
+    "request_evaluation": {
+      "$ref": "#/$defs/RequestEvaluation"
+    },
+    "response_evaluation": {
+      "$ref": "#/$defs/ResponseEvaluation"
+    },
+    "judge_consensus": {
+      "$ref": "#/$defs/JudgeConsensus"
+    },
+    "evidence_validation": {
+      "$ref": "#/$defs/EvidenceValidation"
+    },
+    "dct_status": {
+      "$ref": "#/$defs/DCTStatus"
+    },
+    "repeatability_check": {
+      "$ref": "#/$defs/RepeatabilityCheck"
+    },
+    "error": {
+      "type": "string",
+      "description": "Error message if evaluation failed (typically for RED state)"
+    }
+  },
+  "$defs": {
+    "ConsensusDetails": {
+      "type": "object",
+      "required": ["total_judges", "valid_outputs"],
+      "properties": {
+        "total_judges": {
+          "type": "integer",
+          "description": "Number of judges called"
+        },
+        "valid_outputs": {
+          "type": "integer",
+          "description": "Number of judges that returned valid JSON"
+        },
+        "failed_judges": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "model": {
+                "type": "string"
+              },
+              "error": {
+                "type": "string"
+              },
+              "repair_attempted": {
+                "type": "boolean"
+              }
+            }
+          },
+          "description": "Details of failed judge calls"
+        }
+      }
+    },
+    "EvidencePointer": {
+      "type": "object",
+      "required": ["claim", "quote", "source_path"],
+      "properties": {
+        "claim": {
+          "type": "string",
+          "description": "What the evaluator claims about the content"
+        },
+        "quote": {
+          "type": "string",
+          "description": "EXACT verbatim quote from the extracted JSON supporting the claim"
+        },
+        "source_path": {
+          "type": "string",
+          "description": "JSON path to the source (e.g., response.content, request.source_documents)"
+        }
+      }
+    },
+    "SubCriterionScore": {
+      "type": "object",
+      "required": ["score", "rationale"],
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Score from 1 (poor) to 5 (excellent)"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Brief explanation for the score"
+        },
+        "score_gap_reason": {
+          "type": "string",
+          "description": "For scores <5, explains what would elevate the score"
+        },
+        "evidence": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EvidencePointer"
+          },
+          "description": "Supporting evidence from the extracted JSON"
+        }
+      }
+    },
+    "RequestEvaluation": {
+      "type": "object",
+      "required": ["context_completeness", "evidence_availability", "decision_framing_quality", "rationale"],
+      "properties": {
+        "context_completeness": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "How complete is the context provided to the AI?"
+        },
+        "evidence_availability": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "How much supporting evidence was available in source documents?"
+        },
+        "decision_framing_quality": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "How well was the decision framed with alternatives and objectives?"
+        },
+        "rationale": {
+          "type": "string",
+          "description": "Overall assessment of request quality"
+        }
+      }
+    },
+    "DecisionIntegrityStatement": {
+      "type": "object",
+      "required": ["recommendation", "what_we_did", "what_we_tested", "risks_acknowledged", "why_this_path"],
+      "properties": {
+        "recommendation": {
+          "type": "string",
+          "description": "Clear statement of what should be done. Starts with [GAP]: if unclear."
+        },
+        "what_we_did": {
+          "type": "string",
+          "description": "Summary of analysis performed. Starts with [GAP]: if unclear."
+        },
+        "what_we_tested": {
+          "type": "string",
+          "description": "Scenarios, assumptions, and alternatives examined. Starts with [GAP]: if none."
+        },
+        "risks_acknowledged": {
+          "type": "string",
+          "description": "Key risks and uncertainties identified. Starts with [GAP]: if none."
+        },
+        "why_this_path": {
+          "type": "string",
+          "description": "Justification vs. alternatives including status quo. Starts with [GAP]: if missing."
+        }
+      }
+    },
+    "EvidenceScores": {
+      "type": "object",
+      "required": ["source_diversity", "data_validity", "traceability", "data_coverage", "aggregate"],
+      "properties": {
+        "source_diversity": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are multiple types of sources used (internal, external, open, expert)?"
+        },
+        "data_validity": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Is the data recent, credible, and appropriate for this context?"
+        },
+        "traceability": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are key claims linked to identifiable, verifiable sources?"
+        },
+        "data_coverage": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are all critical dimensions (market, team, financials, etc.) covered?"
+        },
+        "aggregate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Average of sub-criterion scores"
+        }
+      }
+    },
+    "AssumptionScores": {
+      "type": "object",
+      "required": ["transparency", "validation", "inflection_points", "limitations", "aggregate"],
+      "properties": {
+        "transparency": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are major assumptions clearly stated and separated from facts?"
+        },
+        "validation": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are assumptions supported by data, benchmarks, or expert input?"
+        },
+        "inflection_points": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are the most sensitive variables that can swing the decision identified?"
+        },
+        "limitations": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are model gaps, exclusions, blind spots openly acknowledged?"
+        },
+        "aggregate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Average of sub-criterion scores"
+        }
+      }
+    },
+    "ScenarioScores": {
+      "type": "object",
+      "required": ["scenario_depth", "sensitivity_testing", "tradeoff_visibility", "time_horizon", "aggregate"],
+      "properties": {
+        "scenario_depth": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are base, upside, downside, and edge cases ACTUALLY MODELED (not just mentioned)?"
+        },
+        "sensitivity_testing": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are key drivers ACTUALLY VARIED with results shown (not just recommended)?"
+        },
+        "tradeoff_visibility": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are risks, costs, and opportunity costs clearly surfaced?"
+        },
+        "time_horizon": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Are short-, mid-, and long-term outcomes addressed?"
+        },
+        "aggregate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Average of sub-criterion scores"
+        }
+      }
+    },
+    "DecisionScores": {
+      "type": "object",
+      "required": ["decision_framing", "logical_flow", "insight_maturity", "conclusion_clarity", "aggregate"],
+      "properties": {
+        "decision_framing": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Is there a clear, actionable decision question with defined alternatives (including status quo)?"
+        },
+        "logical_flow": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Does the analysis connect cleanly from data to insight to recommendation?"
+        },
+        "insight_maturity": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Does it go beyond surface-level points to reveal new insight?"
+        },
+        "conclusion_clarity": {
+          "$ref": "#/$defs/SubCriterionScore",
+          "description": "Is the recommendation specific, justified, and actionable?"
+        },
+        "aggregate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Average of sub-criterion scores"
+        }
+      }
+    },
+    "EASDScores": {
+      "type": "object",
+      "required": ["evidence", "assumptions", "scenarios", "decision", "total_score", "max_score", "confidence_level"],
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/EvidenceScores"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/AssumptionScores"
+        },
+        "scenarios": {
+          "$ref": "#/$defs/ScenarioScores"
+        },
+        "decision": {
+          "$ref": "#/$defs/DecisionScores"
+        },
+        "total_score": {
+          "type": "number",
+          "description": "Sum of all 16 sub-criterion scores"
+        },
+        "max_score": {
+          "type": "integer",
+          "const": 80,
+          "description": "Maximum possible score (16 criteria × 5 points)"
+        },
+        "confidence_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "total_score / max_score as decimal"
+        }
+      }
+    },
+    "ResponseEvaluation": {
+      "type": "object",
+      "required": ["dis", "easd_scores"],
+      "properties": {
+        "dis": {
+          "$ref": "#/$defs/DecisionIntegrityStatement"
+        },
+        "dis_gaps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of DIS completeness issues found"
+        },
+        "easd_scores": {
+          "$ref": "#/$defs/EASDScores"
+        }
+      }
+    },
+    "JudgeConsensus": {
+      "type": "object",
+      "required": ["models_used", "consensus_state", "agreement_rate", "score_variance"],
+      "properties": {
+        "models_used": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "OpenRouter model IDs used for evaluation"
+        },
+        "consensus_state": {
+          "type": "string",
+          "enum": ["green", "amber", "red"],
+          "description": "green: 3/3 valid, amber: 2/3 valid, red: <2 valid"
+        },
+        "agreement_rate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Proportion of sub-criteria where all judges agreed within 1 point"
+        },
+        "score_variance": {
+          "type": "object",
+          "properties": {
+            "E": { "type": "number" },
+            "A": { "type": "number" },
+            "S": { "type": "number" },
+            "D": { "type": "number" }
+          },
+          "description": "Standard deviation of aggregate scores across judges"
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Warnings about significant disagreements or validation issues"
+        }
+      }
+    },
+    "EvidenceValidation": {
+      "type": "object",
+      "required": ["issues_found", "hallucinated_quotes"],
+      "properties": {
+        "issues_found": {
+          "type": "integer",
+          "description": "Total number of evidence validation issues"
+        },
+        "hallucinated_quotes": {
+          "type": "integer",
+          "description": "Number of quotes not found verbatim in source"
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["missing_evidence", "invalid_source_path", "quote_not_found", "warning"]
+              },
+              "location": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "quote_preview": {
+                "type": "string"
+              },
+              "source_path": {
+                "type": "string"
+              }
+            }
+          },
+          "description": "Detailed list of evidence validation issues (capped at 10)"
+        }
+      }
+    },
+    "DCTStatus": {
+      "type": "object",
+      "required": ["passes_threshold", "total_score", "required_score", "critical_drivers_met"],
+      "properties": {
+        "passes_threshold": {
+          "type": "boolean",
+          "description": "Does the evaluation meet the Decision Confidence Threshold?"
+        },
+        "total_score": {
+          "type": "number",
+          "description": "Final aggregated score"
+        },
+        "required_score": {
+          "type": "integer",
+          "const": 68,
+          "description": "Minimum score to pass DCT"
+        },
+        "critical_drivers_met": {
+          "type": "boolean",
+          "description": "Are all critical drivers (data_validity, validation, scenario_depth, conclusion_clarity, decision_framing) ≥4?"
+        },
+        "critical_driver_failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of critical drivers that failed to meet threshold"
+        },
+        "residual_risks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Identified risks from the residual risk review"
+        }
+      }
+    },
+    "RepeatabilityCheck": {
+      "type": "object",
+      "properties": {
+        "dimension_drift": {
+          "type": "object",
+          "properties": {
+            "E": { "type": "number" },
+            "A": { "type": "number" },
+            "S": { "type": "number" },
+            "D": { "type": "number" }
+          },
+          "description": "Absolute difference in aggregate scores between runs"
+        },
+        "total_score_drift": {
+          "type": "number",
+          "description": "Absolute difference in total score between runs"
+        },
+        "run1_total": {
+          "type": "number"
+        },
+        "run2_total": {
+          "type": "number"
+        },
+        "stability_assessment": {
+          "type": "string",
+          "enum": ["stable", "moderate", "unstable"],
+          "description": "stable: ≤0.5 drift, moderate: ≤1.0, unstable: >1.0"
+        },
+        "recommendation": {
+          "type": ["string", "null"],
+          "description": "Recommendation if instability detected"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message if repeatability check failed"
+        }
+      },
+      "description": "Results of optional repeatability check (--repeatability-check flag)"
+    }
+  }
+}

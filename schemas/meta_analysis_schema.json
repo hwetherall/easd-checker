@@ -1,0 +1,391 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "EASD Meta-Analysis Output",
+  "description": "Schema for Stage 3 meta-analysis synthesis from multiple judge evaluations",
+  "type": "object",
+  "required": [
+    "source_id",
+    "synthesized_at",
+    "synthesis_model",
+    "cross_evaluation_analysis",
+    "synthesized_dis",
+    "final_easd_scores",
+    "meta_insights",
+    "synthesis_metadata"
+  ],
+  "properties": {
+    "source_id": {
+      "type": "string",
+      "description": "Identifier from the original evaluation (e.g., ai-log-259643)"
+    },
+    "synthesized_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 timestamp of synthesis"
+    },
+    "synthesis_model": {
+      "type": "string",
+      "description": "Model used for synthesis (e.g., anthropic/claude-opus-4.5)"
+    },
+    "cross_evaluation_analysis": {
+      "$ref": "#/$defs/CrossEvaluationAnalysis"
+    },
+    "synthesized_dis": {
+      "$ref": "#/$defs/SynthesizedDIS"
+    },
+    "final_easd_scores": {
+      "$ref": "#/$defs/FinalEASDScores"
+    },
+    "meta_insights": {
+      "$ref": "#/$defs/MetaInsights"
+    },
+    "synthesis_metadata": {
+      "$ref": "#/$defs/SynthesisMetadata"
+    }
+  },
+  "$defs": {
+    "DisagreementType": {
+      "type": "string",
+      "enum": ["semantic", "substantive", "omission"],
+      "description": "Type of disagreement: semantic (wording), substantive (real analytical difference), omission (missing in one evaluation)"
+    },
+    "AgreementPoint": {
+      "type": "object",
+      "required": ["point", "confidence"],
+      "properties": {
+        "point": {
+          "type": "string",
+          "description": "Description of the point of agreement"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "Confidence level based on convergence strength"
+        },
+        "supporting_judges": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of judge models that support this point"
+        }
+      }
+    },
+    "DisagreementPoint": {
+      "type": "object",
+      "required": ["point", "type", "resolution"],
+      "properties": {
+        "point": {
+          "type": "string",
+          "description": "Description of the disagreement"
+        },
+        "type": {
+          "$ref": "#/$defs/DisagreementType"
+        },
+        "positions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "judge": { "type": "string" },
+              "position": { "type": "string" }
+            }
+          },
+          "description": "Different positions held by judges"
+        },
+        "resolution": {
+          "type": "string",
+          "description": "How this disagreement was resolved in the synthesis"
+        },
+        "residual_uncertainty": {
+          "type": "string",
+          "description": "Any remaining uncertainty after resolution"
+        }
+      }
+    },
+    "DimensionAnalysis": {
+      "type": "object",
+      "required": ["agreements", "disagreements", "synthesis_note"],
+      "properties": {
+        "agreements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/AgreementPoint" },
+          "description": "Points of strong agreement across judges"
+        },
+        "disagreements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/DisagreementPoint" },
+          "description": "Points of disagreement with classification and resolution"
+        },
+        "synthesis_note": {
+          "type": "string",
+          "description": "Brief explanation of how this dimension was synthesized"
+        }
+      }
+    },
+    "CrossEvaluationAnalysis": {
+      "type": "object",
+      "required": ["evidence", "assumptions", "scenarios", "decision"],
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/DimensionAnalysis",
+          "description": "Cross-evaluation analysis for Evidence dimension"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/DimensionAnalysis",
+          "description": "Cross-evaluation analysis for Assumptions dimension"
+        },
+        "scenarios": {
+          "$ref": "#/$defs/DimensionAnalysis",
+          "description": "Cross-evaluation analysis for Scenarios dimension"
+        },
+        "decision": {
+          "$ref": "#/$defs/DimensionAnalysis",
+          "description": "Cross-evaluation analysis for Decision dimension"
+        }
+      }
+    },
+    "SynthesizedDIS": {
+      "type": "object",
+      "required": [
+        "recommendation",
+        "what_we_did",
+        "what_we_tested",
+        "risks_acknowledged",
+        "why_this_path",
+        "unresolved_risks",
+        "recommendation_confidence"
+      ],
+      "properties": {
+        "recommendation": {
+          "type": "string",
+          "description": "Single, unambiguous action statement synthesized from all judges"
+        },
+        "what_we_did": {
+          "type": "string",
+          "description": "Synthesized summary of analysis performed"
+        },
+        "what_we_tested": {
+          "type": "string",
+          "description": "Synthesized scenarios, assumptions, and alternatives examined"
+        },
+        "risks_acknowledged": {
+          "type": "string",
+          "description": "Synthesized key risks and uncertainties"
+        },
+        "why_this_path": {
+          "type": "string",
+          "description": "Synthesized justification vs. alternatives"
+        },
+        "unresolved_risks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Risks that remain unresolved or underaddressed across all judges"
+        },
+        "recommendation_confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "Confidence in the recommendation based on judge convergence"
+        },
+        "recommendation_conflicts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "judge": { "type": "string" },
+              "alternative_recommendation": { "type": "string" },
+              "reason_for_rejection": { "type": "string" }
+            }
+          },
+          "description": "If judges disagreed on recommendation, document the conflicts and resolution"
+        }
+      }
+    },
+    "FinalSubCriterionScore": {
+      "type": "object",
+      "required": ["score", "justification"],
+      "properties": {
+        "score": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Final synthesized score (1-5)"
+        },
+        "judge_scores": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "judge": { "type": "string" },
+              "score": { "type": "number" }
+            }
+          },
+          "description": "Individual judge scores for transparency"
+        },
+        "variance": {
+          "type": "number",
+          "description": "Standard deviation of judge scores"
+        },
+        "justification": {
+          "type": "string",
+          "description": "Why this final score was chosen based on judge consensus and reasoning depth"
+        },
+        "confidence_adjusted": {
+          "type": "boolean",
+          "description": "Whether the score was lowered due to high variance or weak reasoning"
+        }
+      }
+    },
+    "FinalDimensionScores": {
+      "type": "object",
+      "properties": {
+        "aggregate": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 5,
+          "description": "Final aggregate score for this dimension"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/FinalSubCriterionScore"
+      },
+      "description": "Contains sub-criterion scores plus aggregate"
+    },
+    "FinalEASDScores": {
+      "type": "object",
+      "required": [
+        "evidence",
+        "assumptions",
+        "scenarios",
+        "decision",
+        "total_score",
+        "max_score",
+        "confidence_level",
+        "passes_dct"
+      ],
+      "properties": {
+        "evidence": {
+          "$ref": "#/$defs/FinalDimensionScores",
+          "description": "Final Evidence dimension scores"
+        },
+        "assumptions": {
+          "$ref": "#/$defs/FinalDimensionScores",
+          "description": "Final Assumptions dimension scores"
+        },
+        "scenarios": {
+          "$ref": "#/$defs/FinalDimensionScores",
+          "description": "Final Scenarios dimension scores"
+        },
+        "decision": {
+          "$ref": "#/$defs/FinalDimensionScores",
+          "description": "Final Decision dimension scores"
+        },
+        "total_score": {
+          "type": "number",
+          "description": "Sum of all 16 sub-criterion scores"
+        },
+        "max_score": {
+          "type": "integer",
+          "const": 80,
+          "description": "Maximum possible score (16 criteria × 5 points)"
+        },
+        "confidence_level": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "description": "total_score / max_score as decimal"
+        },
+        "passes_dct": {
+          "type": "boolean",
+          "description": "Whether the final scores pass the Decision Confidence Threshold (68/80 + critical drivers ≥4)"
+        },
+        "critical_driver_status": {
+          "type": "object",
+          "properties": {
+            "all_met": { "type": "boolean" },
+            "failures": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          },
+          "description": "Status of critical drivers (data_validity, validation, scenario_depth, conclusion_clarity, decision_framing)"
+        }
+      }
+    },
+    "MetaInsights": {
+      "type": "object",
+      "required": [
+        "biggest_analytical_weakness",
+        "confidence_improvement_action",
+        "underweighted_risk"
+      ],
+      "properties": {
+        "biggest_analytical_weakness": {
+          "type": "string",
+          "description": "The single most significant analytical weakness identified across all evaluations"
+        },
+        "confidence_improvement_action": {
+          "type": "string",
+          "description": "The single most impactful action that would improve confidence if addressed"
+        },
+        "underweighted_risk": {
+          "type": "string",
+          "description": "A risk that appears underweighted or overlooked by all judges"
+        },
+        "additional_observations": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Optional additional meta-level observations"
+        }
+      }
+    },
+    "SynthesisMetadata": {
+      "type": "object",
+      "required": [
+        "source_evaluation_id",
+        "judges_synthesized",
+        "synthesis_quality"
+      ],
+      "properties": {
+        "source_evaluation_id": {
+          "type": "string",
+          "description": "ID of the source evaluation file"
+        },
+        "source_evaluation_timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the source evaluation was created"
+        },
+        "judges_synthesized": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "List of judge models whose evaluations were synthesized"
+        },
+        "original_consensus_state": {
+          "type": "string",
+          "enum": ["green", "amber", "red"],
+          "description": "Consensus state from the original Stage 2 evaluation"
+        },
+        "synthesis_quality": {
+          "type": "object",
+          "required": ["overall_confidence", "uncertainty_flags"],
+          "properties": {
+            "overall_confidence": {
+              "type": "string",
+              "enum": ["high", "medium", "low"],
+              "description": "Overall confidence in the synthesis"
+            },
+            "uncertainty_flags": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Explicit flags about remaining uncertainty"
+            },
+            "data_limitations": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Limitations in the source data that affect synthesis quality"
+            }
+          }
+        }
+      }
+    }
+  }
+}
